@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import difflib, http.client, itertools, optparse, random, re, urllib, urllib.parse, urllib.request  # Python 3 required
+import difflib, http.client, itertools, optparse, random, re, urllib, urllib.parse, urllib.request,json  # Python 3 required
 
 NAME, VERSION, AUTHOR, LICENSE = "Damn Small SQLi Scanner (DSSS) < 100 LoC (Lines of Code)", "0.3b", "Miroslav Stampar (@stamparm)", "Public domain (FREE)"
 
@@ -54,7 +54,7 @@ def scan_page(url, data=None):
                 tampered = current.replace(match.group(0), "%s%s" % (match.group(0), urllib.parse.quote("".join(random.sample(TAMPER_SQL_CHAR_POOL, len(TAMPER_SQL_CHAR_POOL))))))
                 content = _retrieve_content(tampered, data) if phase is GET else _retrieve_content(url, tampered)
                 for (dbms, regex) in ((dbms, regex) for dbms in DBMS_ERRORS for regex in DBMS_ERRORS[dbms]):
-                    if not vulnerable and re.search(regex, content[HTML], re.I) and not re.search(regex, original[HTML], re.I):
+                    if not vulnerable and re.search(regex, content[HTML], re.I) and not re.search(regex, original[HTML], re.I):                       
                         print(" (i) %s parameter '%s' appears to be error SQLi vulnerable (%s)" % (phase, match.group("parameter"), dbms))
                         retval = vulnerable = True
                 vulnerable = False
@@ -70,6 +70,13 @@ def scan_page(url, data=None):
                                 ratios = dict((_, difflib.SequenceMatcher(None, original[TEXT], contents[_][TEXT]).quick_ratio()) for _ in (False, True))
                                 vulnerable = all(ratios.values()) and min(ratios.values()) < FUZZY_THRESHOLD < max(ratios.values()) and abs(ratios[True] - ratios[False]) > FUZZY_THRESHOLD / 10
                         if vulnerable:
+                            json_form = {
+                                "type":"SQLi",
+                                "url": payloads[True]
+                            }
+                            json_format = json.dumps(json_form, indent=4)
+                            with open("vul.json", "a") as fjson:
+                                fjson.write(json_format + "," + "\n")
                             print(" (i) %s parameter '%s' appears to be blind SQLi vulnerable (e.g.: '%s')" % (phase, match.group("parameter"), payloads[True]))
                             retval = True
         if not usable:
